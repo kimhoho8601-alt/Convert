@@ -180,7 +180,7 @@ async function hwpxOrHwpToHtml(file){
   const lib=await import('https://cdn.jsdelivr.net/npm/@ssabrojs/hwpxjs@0.4.0/dist/browser/hwpxjs.browser.mjs');
   let bytes=new Uint8Array(await file.arrayBuffer()), hwpxBytes=bytes;
   if(file.name.toLowerCase().endsWith('.hwp')) hwpxBytes=await lib.hwpToHwpx(bytes,{title:baseName(file.name),creator:'Convert'});
-  const reader=new lib.default(); await reader.loadFromArrayBuffer(hwpxBytes.buffer.slice(hwpxBytes.byteOffset,hwpxBytes.byteOffset+hwpxBytes.byteLength));
+  const reader=new lib.HwpxReader(); await reader.loadFromArrayBuffer(hwpxBytes.buffer.slice(hwpxBytes.byteOffset,hwpxBytes.byteOffset+hwpxBytes.byteLength));
   return await reader.extractHtml({renderImages:true,renderTables:true,renderStyles:true,embedImages:true});
 }
 async function documentToHtml(file){
