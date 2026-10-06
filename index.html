@@ -404,47 +404,71 @@ async function fileToCanvas(file){
   const url=URL.createObjectURL(file);
   try{
     const img=new Image();
-    await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url});
+    await new Promise((resolve,reject)=>{
+      img.onload=resolve;
+      img.onerror=()=>reject(new Error('IMAGE_DECODE'));
+      img.src=url;
+    });
+    const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+    if(!w||!h)throw new Error('IMAGE_DIMENSION');
     const canvas=document.createElement('canvas');
-    canvas.width=img.naturalWidth||img.width;
-    canvas.height=img.naturalHeight||img.height;
-    const ctx=canvas.getContext('2d');
+    canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx)throw new Error('CANVAS_CONTEXT');
     ctx.fillStyle='#fff';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
     return canvas;
-  }finally{URL.revokeObjectURL(url)}
+  }finally{
+    URL.revokeObjectURL(url);
+  }
+}
+async function canvasToJpegBytes(canvas,quality=0.9){
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+  if(!blob)throw new Error('IMAGE_ENCODE');
+  return new Uint8Array(await blob.arrayBuffer());
 }
 async function imagesToPdf(){
-  const {jsPDF}=window.jspdf;
-  if(!jsPDF)throw new Error('PDF_ENGINE');
-  let pdf=null;
+  if(!window.PDFLib?.PDFDocument)throw new Error('PDF_ENGINE');
+  const pdf=await PDFLib.PDFDocument.create();
+  const A4_PORTRAIT=[595.28,841.89];
+  const A4_LANDSCAPE=[841.89,595.28];
+
   for(let i=0;i<selectedFiles.length;i++){
     setStatus((i+1)+' / '+selectedFiles.length+' 이미지 처리 중...');
     const canvas=await fileToCanvas(selectedFiles[i]);
-    const w=canvas.width,h=canvas.height;
-    const data=canvas.toDataURL('image/jpeg',0.94);
+    const jpgBytes=await canvasToJpegBytes(canvas,0.9);
+    const image=await pdf.embedJpg(jpgBytes);
+    const iw=canvas.width,ih=canvas.height;
+
+    let pageW,pageH,drawW,drawH,x,y;
     if(pageSize.value==='original'){
-      const orient=w>h?'l':'p';
-      const mmPerPx=0.264583;
-      let pw=w*mmPerPx,ph=h*mmPerPx;
-      const maxMm=14400;
-      const shrink=Math.min(1,maxMm/Math.max(pw,ph));
-      pw*=shrink;ph*=shrink;
-      if(!pdf)pdf=new jsPDF({orientation:orient,unit:'mm',format:[pw,ph]});
-      else pdf.addPage([pw,ph],orient);
-      pdf.addImage(data,'JPEG',0,0,pw,ph,undefined,'FAST');
+      const ptPerPx=72/96;
+      pageW=iw*ptPerPx;
+      pageH=ih*ptPerPx;
+      const maxPt=14400;
+      const shrink=Math.min(1,maxPt/Math.max(pageW,pageH));
+      pageW*=shrink;pageH*=shrink;
+      drawW=pageW;drawH=pageH;x=0;y=0;
     }else{
-      const orient=w>h?'l':'p';
-      if(!pdf)pdf=new jsPDF({orientation:orient,unit:'mm',format:'a4'});
-      else pdf.addPage('a4',orient);
-      const pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight();
-      const ratio=Math.min((pw-16)/w,(ph-16)/h),dw=w*ratio,dh=h*ratio;
-      pdf.addImage(data,'JPEG',(pw-dw)/2,(ph-dh)/2,dw,dh,undefined,'FAST');
+      const landscape=iw>ih;
+      [pageW,pageH]=landscape?A4_LANDSCAPE:A4_PORTRAIT;
+      const margin=24;
+      const ratio=Math.min((pageW-margin*2)/iw,(pageH-margin*2)/ih);
+      drawW=iw*ratio;drawH=ih*ratio;
+      x=(pageW-drawW)/2;y=(pageH-drawH)/2;
     }
+
+    const page=pdf.addPage([pageW,pageH]);
+    page.drawImage(image,{x,y,width:drawW,height:drawH});
   }
-  if(!pdf)throw new Error('PDF_ENGINE');
-  pdf.save((selectedFiles.length===1?baseName(selectedFiles[0].name):'images')+'.pdf');
+
+  if(pdf.getPageCount()===0)throw new Error('PDF_ENGINE');
+  const bytes=await pdf.save({useObjectStreams:false});
+  downloadBlob(
+    new Blob([bytes],{type:'application/pdf'}),
+    (selectedFiles.length===1?baseName(selectedFiles[0].name):'images')+'.pdf'
+  );
   setStatus('PDF 생성 완료!');
 }
 
@@ -570,9 +594,14 @@ btn.onclick=async()=>{
     else if(mode==='pdftools'&&pdfTool==='split')await splitPdf();
   }catch(e){
     console.error(e);
-    let msg='처리 중 오류가 발생했습니다. 파일이 손상되었거나 브라우저에서 처리하기 어려운 형식일 수 있습니다.';
+    let msg='처리 중 오류가 발생했습니다.';
     if(e.message==='MERGE_NEEDS_TWO')msg='PDF 합치기는 PDF 파일을 2개 이상 선택해야 합니다.';
-    if(e.message==='BAD_RANGE')msg='페이지 범위를 확인해주세요. 예: 1-3,5,8';
+    else if(e.message==='BAD_RANGE')msg='페이지 범위를 확인해주세요. 예: 1-3,5,8';
+    else if(e.message==='IMAGE_DECODE')msg='이미지 파일을 읽지 못했습니다. JPG·PNG·WebP 파일인지 확인해주세요.';
+    else if(e.message==='IMAGE_DIMENSION'||e.message==='CANVAS_CONTEXT')msg='이미지 크기 또는 브라우저 메모리 문제로 처리하지 못했습니다.';
+    else if(e.message==='IMAGE_ENCODE')msg='이미지를 PDF용 데이터로 변환하지 못했습니다.';
+    else if(e.message==='PDF_ENGINE')msg='PDF 생성 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.';
+    else if(e?.message)msg+=' ('+e.message+')';
     setStatus(msg);
   }finally{btn.disabled=false}
 };
