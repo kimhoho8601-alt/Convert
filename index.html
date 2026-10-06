@@ -3,464 +3,353 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Convert — 문서 변환기</title>
-  <meta name="description" content="PDF↔이미지·HWPX·문서 PDF 변환을 브라우저에서 처리하는 문서 변환기" />
+  <meta name="theme-color" content="#c9002b" />
+  <title>Convert Studio — 파일 변환 도구</title>
+  <meta name="description" content="PDF와 이미지 파일을 브라우저에서 안전하게 변환·병합·분할하는 도구" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.13.0/mammoth.browser.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
-
 :root{
-  --red:#c9002b;
-  --red-dark:#9d0022;
-  --red-soft:#fff0f3;
-  --ink:#241b1d;
-  --muted:#746a6c;
-  --line:#e8dfe1;
-  --paper:#fffdfd;
-  --white:#fff;
-  --page:#f7f3f4;
-  --shadow:0 22px 60px rgba(79,15,28,.12);
-  --shadow-small:0 10px 28px rgba(79,15,28,.08);
+  --red:#c9002b;--red-dark:#9d0022;--red-soft:#fff0f3;--ink:#241b1d;--muted:#746a6c;
+  --line:#e8dfe1;--paper:#fffdfd;--white:#fff;--page:#f7f3f4;
+  --shadow:0 22px 60px rgba(79,15,28,.12);--shadow-small:0 10px 28px rgba(79,15,28,.08)
 }
 *{box-sizing:border-box}
-html{
-  background:var(--page);
-  color:var(--ink);
-  font-family:"IBM Plex Sans KR",sans-serif;
-  word-break:keep-all;
-  overflow-wrap:normal;
-}
+html{background:var(--page);color:var(--ink);font-family:"IBM Plex Sans KR",sans-serif;word-break:keep-all;overflow-wrap:normal}
 body{margin:0;min-width:320px}
-button,input,select{font:inherit}
-button{color:inherit;cursor:pointer}
-a{color:inherit;text-decoration:none}
-button:focus-visible,input:focus-visible,select:focus-visible,.file-label:focus-within{
-  outline:3px solid rgba(201,0,43,.16);
-  outline-offset:3px;
-}
+button,input,select{font:inherit}button{color:inherit;cursor:pointer}a{color:inherit;text-decoration:none}
+button:focus-visible,input:focus-visible,select:focus-visible,.file-label:focus-within{outline:3px solid rgba(201,0,43,.16);outline-offset:3px}
 [hidden],.hidden{display:none!important}
-
-.topbar{
-  height:76px;
-  padding:0 clamp(20px,4vw,64px);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:18px;
-  background:rgba(255,255,255,.96);
-  border-bottom:1px solid var(--line);
-  position:sticky;
-  top:0;
-  z-index:30;
-  backdrop-filter:blur(14px);
-}
-.brand{display:flex;align-items:center;gap:12px}
-.brand-mark{
-  width:38px;height:38px;display:grid;place-items:center;
-  background:var(--red);color:#fff;border-radius:5px 14px 5px 5px;
-  font:800 17px Manrope,sans-serif;
-  box-shadow:0 8px 22px rgba(201,0,43,.19);
-}
-.brand strong,.brand small{display:block}
-.brand strong{font:800 15px Manrope,sans-serif;letter-spacing:-.02em}
-.brand small{font:600 9px Manrope,sans-serif;color:var(--muted);letter-spacing:.06em;margin-top:2px}
-.home-link{
-  min-height:40px;padding:0 15px;border:1px solid var(--line);border-radius:10px;
-  display:inline-flex;align-items:center;gap:7px;background:#fff;
-  font-size:12px;font-weight:700;white-space:nowrap;transition:.18s ease;
-}
+.topbar{height:76px;padding:0 clamp(20px,4vw,64px);display:flex;align-items:center;justify-content:space-between;gap:18px;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;backdrop-filter:blur(14px)}
+.brand{display:flex;align-items:center;gap:12px}.brand-mark{width:38px;height:38px;display:grid;place-items:center;background:var(--red);color:#fff;border-radius:5px 14px 5px 5px;font:800 17px Manrope,sans-serif;box-shadow:0 8px 22px rgba(201,0,43,.19)}
+.brand strong,.brand small{display:block}.brand strong{font:800 15px Manrope,sans-serif;letter-spacing:-.02em}.brand small{font:600 9px Manrope,sans-serif;color:var(--muted);letter-spacing:.06em;margin-top:2px}
+.home-link{min-height:40px;padding:0 15px;border:1px solid var(--line);border-radius:10px;display:inline-flex;align-items:center;gap:7px;background:#fff;font-size:12px;font-weight:700;white-space:nowrap;transition:.18s ease}
 .home-link:hover{border-color:#d9b7bf;background:#fffafb;transform:translateY(-1px)}
-
-.hero{
-  min-height:320px;
-  padding:68px clamp(24px,6vw,96px) 58px;
-  display:grid;
-  grid-template-columns:minmax(0,1.1fr) minmax(270px,.9fr);
-  gap:60px;
-  align-items:end;
-  background:#fff;
-  border-bottom:1px solid var(--line);
-}
+.hero{min-height:320px;padding:68px clamp(24px,6vw,96px) 58px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(270px,.9fr);gap:60px;align-items:end;background:#fff;border-bottom:1px solid var(--line)}
 .eyebrow{margin:0 0 13px;color:var(--red);font:800 11px Manrope,sans-serif;letter-spacing:.16em}
-.hero h1{
-  margin:0;
-  font-size:clamp(38px,5vw,68px);
-  line-height:1.08;
-  letter-spacing:-.055em;
-  text-wrap:balance;
-}
-.hero h1 .line{display:block}
-.hero h1 em{font-style:normal;color:var(--red)}
-.hero-copy>p:last-child{
-  margin:26px 0 0;max-width:660px;color:var(--muted);
-  font-size:16px;line-height:1.78;text-wrap:pretty;
-}
-.hero-visual{display:flex;justify-content:flex-end;align-items:flex-end}
-.doc-stack{position:relative;width:280px;height:180px}
-.doc-sheet{
-  position:absolute;width:128px;height:156px;border:3px solid var(--ink);
-  border-radius:12px;background:#fff;box-shadow:var(--shadow-small);
-}
-.doc-sheet.back{left:17px;top:10px;transform:rotate(-7deg);opacity:.32}
-.doc-sheet.front{right:24px;bottom:0;transform:rotate(6deg);border-color:var(--red);opacity:.28}
-.doc-core{
-  position:absolute;left:74px;top:8px;width:136px;height:162px;
-  border:3px solid var(--ink);border-radius:12px;background:#fff;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;
-  box-shadow:var(--shadow);
-}
-.doc-core b{font:800 18px Manrope,sans-serif}
-.doc-arrow{width:50px;height:24px;position:relative}
-.doc-arrow:before{content:"";position:absolute;left:2px;right:9px;top:10px;height:3px;border-radius:3px;background:var(--red)}
+.hero h1{margin:0;font-size:clamp(38px,5vw,68px);line-height:1.08;letter-spacing:-.055em;text-wrap:balance}.hero h1 .line{display:block}.hero h1 em{font-style:normal;color:var(--red)}
+.hero-copy>p:last-child{margin:26px 0 0;max-width:660px;color:var(--muted);font-size:16px;line-height:1.78;text-wrap:pretty}
+.hero-visual{display:flex;justify-content:flex-end;align-items:flex-end}.doc-stack{position:relative;width:280px;height:180px}
+.doc-sheet{position:absolute;width:128px;height:156px;border:3px solid var(--ink);border-radius:12px;background:#fff;box-shadow:var(--shadow-small)}
+.doc-sheet.back{left:17px;top:10px;transform:rotate(-7deg);opacity:.32}.doc-sheet.front{right:24px;bottom:0;transform:rotate(6deg);border-color:var(--red);opacity:.28}
+.doc-core{position:absolute;left:74px;top:8px;width:136px;height:162px;border:3px solid var(--ink);border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;box-shadow:var(--shadow)}
+.doc-core b{font:800 18px Manrope,sans-serif}.doc-arrow{width:50px;height:24px;position:relative}.doc-arrow:before{content:"";position:absolute;left:2px;right:9px;top:10px;height:3px;border-radius:3px;background:var(--red)}
 .doc-arrow:after{content:"";position:absolute;right:1px;top:4px;width:12px;height:12px;border-top:3px solid var(--red);border-right:3px solid var(--red);transform:rotate(45deg)}
-
-.workspace{
-  display:grid;
-  grid-template-columns:minmax(330px,380px) minmax(0,1fr);
-  margin:28px clamp(16px,3vw,44px) 54px;
-  min-height:650px;
-  background:#fff;
-  border:1px solid var(--line);
-  border-radius:22px;
-  overflow:hidden;
-  box-shadow:var(--shadow);
-}
-.mode-panel{
-  padding:30px 26px 24px;
-  border-right:1px solid var(--line);
-  display:flex;
-  flex-direction:column;
-  min-width:0;
-}
-.panel-kicker{margin:0 0 8px;color:var(--red);font:800 10px Manrope,sans-serif;letter-spacing:.13em}
-.mode-panel h2,.panel-head h3{
-  margin:0;font-size:clamp(24px,2.5vw,32px);line-height:1.25;letter-spacing:-.035em;text-wrap:balance;
-}
-.mode-panel>.panel-copy,.panel-head p{margin:8px 0 0;color:var(--muted);font-size:13px;line-height:1.65}
-
+.workspace{display:grid;grid-template-columns:minmax(330px,390px) minmax(0,1fr);margin:28px clamp(16px,3vw,44px) 54px;min-height:700px;background:#fff;border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:var(--shadow)}
+.mode-panel{padding:30px 26px 24px;border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0}.panel-kicker{margin:0 0 8px;color:var(--red);font:800 10px Manrope,sans-serif;letter-spacing:.13em}
+.mode-panel h2,.panel-head h3{margin:0;font-size:clamp(24px,2.5vw,32px);line-height:1.25;letter-spacing:-.035em;text-wrap:balance}.mode-panel>.panel-copy,.panel-head p{margin:8px 0 0;color:var(--muted);font-size:13px;line-height:1.65}
 .grid{display:grid;grid-template-columns:1fr;gap:9px;margin-top:26px}
-.tool{
-  width:100%;min-height:96px;padding:15px;border:1px solid var(--line);border-radius:13px;
-  background:#fff;text-align:left;display:grid;grid-template-columns:44px minmax(0,1fr);gap:13px;
-  align-items:center;transition:.18s ease;
-}
-.tool:hover{transform:translateY(-1px);border-color:#d9b7bf;background:#fffafb}
-.tool.active{
-  border-color:var(--red);
-  background:var(--red-soft);
-  box-shadow:0 0 0 2px rgba(201,0,43,.05);
-}
-.tool .icon{
-  width:44px;height:44px;border-radius:11px;background:#f7f1f2;border:1px solid var(--line);
-  display:grid;place-items:center;color:var(--red);font:800 11px Manrope,sans-serif;
-}
-.tool.active .icon{background:#fff;border-color:#efb8c4}
-.tool h2{margin:0 0 4px;font-size:14px;letter-spacing:-.025em}
-.tool p{margin:0;color:var(--muted);font-size:10px;line-height:1.55;text-wrap:pretty}
-.privacy-note{margin-top:auto;padding:14px;border-radius:12px;background:#f8f5f5}
-.privacy-note strong{font-size:11px}
-.privacy-note p{margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
-
-.work-panel{
-  min-width:0;padding:30px clamp(22px,3vw,38px) 28px;
-  display:flex;flex-direction:column;background:var(--paper);
-}
-.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
-.step-badge{
-  width:34px;height:34px;flex:0 0 auto;display:grid;place-items:center;
-  border:1px solid #efb8c4;border-radius:50%;color:var(--red);font:800 10px Manrope,sans-serif;
-}
-.panel-heading{display:flex;gap:12px;align-items:flex-start}
-.drop{
-  min-height:300px;margin-top:26px;padding:32px;
-  border:1.5px dashed #dca4b0;border-radius:18px;background:#fffafb;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
-  transition:.2s ease;
-}
-.drop:hover,.drop.drag{border-color:var(--red);background:var(--red-soft)}
-.upload-symbol{
-  width:56px;height:56px;border-radius:50%;display:grid;place-items:center;margin-bottom:16px;
-  background:#fff;border:1px solid #efcad2;color:var(--red);font-size:25px;font-weight:500;
-}
-.file-label{
-  min-height:44px;padding:0 18px;border-radius:10px;background:var(--red);color:#fff;
-  display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;
-  box-shadow:0 8px 20px rgba(201,0,43,.18);cursor:pointer;transition:.18s ease;
-}
-.file-label:hover{background:var(--red-dark);transform:translateY(-1px)}
-.file-label input{display:none}
-.hint{margin-top:11px;color:var(--muted);font-size:10px;line-height:1.5;max-width:560px}
-.options{
-  display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
-  margin-top:20px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;
-  font-size:11px;font-weight:700;
-}
-.options input,.options select{
-  width:78px;height:36px;padding:0 9px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);
-}
+.tool{width:100%;min-height:88px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:#fff;text-align:left;display:grid;grid-template-columns:44px minmax(0,1fr);gap:13px;align-items:center;transition:.18s ease}
+.tool:hover{transform:translateY(-1px);border-color:#d9b7bf;background:#fffafb}.tool.active{border-color:var(--red);background:var(--red-soft);box-shadow:0 0 0 2px rgba(201,0,43,.05)}
+.tool .icon{width:44px;height:44px;border-radius:11px;background:#f7f1f2;border:1px solid var(--line);display:grid;place-items:center;color:var(--red);font:800 10px Manrope,sans-serif}.tool.active .icon{background:#fff;border-color:#efb8c4}
+.tool h2{margin:0 0 4px;font-size:14px;letter-spacing:-.025em}.tool p{margin:0;color:var(--muted);font-size:10px;line-height:1.5;text-wrap:pretty}
+.privacy-note{margin-top:auto;padding:14px;border-radius:12px;background:#f8f5f5}.privacy-note strong{font-size:11px}.privacy-note p{margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
+.work-panel{min-width:0;padding:30px clamp(22px,3vw,38px) 28px;display:flex;flex-direction:column;background:var(--paper)}
+.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.step-badge{width:34px;height:34px;flex:0 0 auto;display:grid;place-items:center;border:1px solid #efb8c4;border-radius:50%;color:var(--red);font:800 10px Manrope,sans-serif}.panel-heading{display:flex;gap:12px;align-items:flex-start}
+.drop{min-height:300px;margin-top:26px;padding:32px;border:1.5px dashed #dca4b0;border-radius:18px;background:#fffafb;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:.2s ease}
+.drop:hover,.drop.drag{border-color:var(--red);background:var(--red-soft)}.upload-symbol{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;margin-bottom:16px;background:#fff;border:1px solid #efcad2;color:var(--red);font-size:25px;font-weight:500}
+.file-label{min-height:44px;padding:0 18px;border-radius:10px;background:var(--red);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 8px 20px rgba(201,0,43,.18);cursor:pointer;transition:.18s ease}
+.file-label:hover{background:var(--red-dark);transform:translateY(-1px)}.file-label input{display:none}.hint{margin-top:11px;color:var(--muted);font-size:10px;line-height:1.5;max-width:560px}
+.options{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:20px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:11px;font-weight:700}
+.options label{display:flex;align-items:center;gap:8px}.options input,.options select{height:36px;padding:0 9px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}.options input[type=number]{width:78px}.options input[type=text]{width:170px}
 .options input:focus,.options select:focus{border-color:var(--red);outline:0;box-shadow:0 0 0 3px var(--red-soft)}
-.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
-.btn{
-  min-height:42px;padding:0 17px;border:0;border-radius:10px;font-size:12px;font-weight:700;
-  white-space:nowrap;transition:.18s ease;
-}
-.btn:hover:not(:disabled){transform:translateY(-1px)}
-.btn:not(.secondary){background:var(--red);color:#fff;box-shadow:0 8px 20px rgba(201,0,43,.18)}
-.btn:not(.secondary):hover:not(:disabled){background:var(--red-dark)}
-.btn.secondary{background:#fff;border:1px solid var(--line);color:var(--ink)}
-.btn.secondary:hover:not(:disabled){background:#fffafb;border-color:#d9b7bf}
-.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
-.status{
-  display:none;width:100%;max-width:620px;margin-top:18px;padding:13px 15px;border-radius:11px;
-  background:#fff;border:1px solid var(--line);color:var(--ink);line-height:1.55;font-size:11px;text-align:left;
-}
-.status:before{content:"●";color:var(--red);margin-right:7px;font-size:9px}
-.note{max-width:620px;margin-top:12px;color:var(--muted);font-size:10px;line-height:1.6;text-align:center}
-#result{display:grid;gap:14px;margin-top:24px}
-#result>.btn{justify-self:start}
-.page-card{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff;box-shadow:var(--shadow-small)}
-.page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;font-size:12px;font-weight:700}
+.segmented{display:flex;gap:6px;margin-top:20px;padding:5px;border-radius:12px;background:#f6f1f2}
+.seg-btn{flex:1;min-height:40px;border:1px solid transparent;border-radius:9px;background:transparent;font-size:11px;font-weight:700}
+.seg-btn.active{background:#fff;border-color:var(--line);color:var(--red);box-shadow:var(--shadow-small)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}.btn{min-height:42px;padding:0 17px;border:0;border-radius:10px;font-size:12px;font-weight:700;white-space:nowrap;transition:.18s ease}
+.btn:hover:not(:disabled){transform:translateY(-1px)}.btn:not(.secondary){background:var(--red);color:#fff;box-shadow:0 8px 20px rgba(201,0,43,.18)}.btn:not(.secondary):hover:not(:disabled){background:var(--red-dark)}
+.btn.secondary{background:#fff;border:1px solid var(--line);color:var(--ink)}.btn.secondary:hover:not(:disabled){background:#fffafb;border-color:#d9b7bf}.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.status{display:none;width:100%;max-width:650px;margin-top:18px;padding:13px 15px;border-radius:11px;background:#fff;border:1px solid var(--line);color:var(--ink);line-height:1.55;font-size:11px;text-align:left}.status:before{content:"●";color:var(--red);margin-right:7px;font-size:9px}
+.note{max-width:650px;margin-top:12px;color:var(--muted);font-size:10px;line-height:1.6;text-align:center}
+.file-list{width:100%;max-width:650px;display:grid;gap:7px;margin-top:14px}.file-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:10px;text-align:left}
+.file-row strong,.file-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-row strong{font-size:11px}.file-row small{font-size:9px;color:var(--muted);margin-top:2px}.file-row span{font:700 9px Manrope;color:var(--red)}
+#result{display:grid;gap:14px;margin-top:24px}#result>.btn{justify-self:start}.page-card{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff;box-shadow:var(--shadow-small)}
+.page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;font-size:12px;font-weight:700}.thumb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.thumb-card{border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+.thumb-card img{width:100%;height:130px;object-fit:contain;background:#faf7f8;display:block}.thumb-card div{padding:9px 10px;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;background:#fff}
-.preview-doc{position:absolute;left:-99999px;top:0;width:794px;background:#fff;color:#111;padding:42px;font-family:"IBM Plex Sans KR",Arial,sans-serif}
-.preview-doc table{border-collapse:collapse;width:100%;font-size:12px}
-.preview-doc td,.preview-doc th{border:1px solid #bbb;padding:5px}
-.preview-doc img{max-width:100%}
-
-@media(max-width:900px){
-  .hero{grid-template-columns:1fr;gap:28px;padding-top:52px}
-  .hero-visual{display:none}
-  .workspace{grid-template-columns:1fr}
-  .mode-panel{border-right:0;border-bottom:1px solid var(--line)}
-  .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .tool{grid-template-columns:1fr;align-content:start}
-  .privacy-note{margin-top:24px}
-}
-@media(max-width:620px){
-  .topbar{height:66px;padding:0 18px}
-  .brand small{display:none}
-  .home-link{min-height:38px;padding:0 11px;font-size:11px}
-  .hero{min-height:auto;padding:38px 20px 34px}
-  .hero h1{font-size:38px}
-  .hero-copy>p:last-child{font-size:14px;margin-top:18px}
-  .workspace{margin:12px 10px 30px;border-radius:16px}
-  .mode-panel,.work-panel{padding:24px 18px}
-  .grid{grid-template-columns:1fr}
-  .tool{grid-template-columns:44px minmax(0,1fr);min-height:88px}
-  .drop{min-height:270px;padding:24px 16px}
-  .panel-head{flex-direction:column}
-  #result>.btn{justify-self:stretch}
-}
-@media(max-width:390px){
-  .hero h1{font-size:34px}
-  .actions{display:grid;grid-template-columns:1fr;width:100%}
-  .actions .btn{width:100%}
-}
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}
-}
-</style>
+@media(max-width:900px){.hero{grid-template-columns:1fr;gap:28px;padding-top:52px}.hero-visual{display:none}.workspace{grid-template-columns:1fr}.mode-panel{border-right:0;border-bottom:1px solid var(--line)}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tool{grid-template-columns:44px minmax(0,1fr)}.privacy-note{margin-top:24px}}
+@media(max-width:620px){.topbar{height:66px;padding:0 18px}.brand small{display:none}.home-link{min-height:38px;padding:0 11px;font-size:11px}.hero{min-height:auto;padding:38px 20px 34px}.hero h1{font-size:38px}.hero-copy>p:last-child{font-size:14px;margin-top:18px}.workspace{margin:12px 10px 30px;border-radius:16px}.mode-panel,.work-panel{padding:24px 18px}.grid{grid-template-columns:1fr}.drop{min-height:270px;padding:24px 16px}.panel-head{flex-direction:column}#result>.btn{justify-self:stretch}.options{align-items:stretch;flex-direction:column}.options label{justify-content:space-between}.options input[type=text]{width:150px}}
+@media(max-width:390px){.hero h1{font-size:34px}.actions{display:grid;grid-template-columns:1fr;width:100%}.actions .btn{width:100%}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+  </style>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="https://kimhoho8601-alt.github.io/main/" aria-label="WORK TOOLS 홈">
       <span class="brand-mark" aria-hidden="true">C</span>
-      <span>
-        <strong>Convert Studio</strong>
-        <small>document converter</small>
-      </span>
+      <span><strong>Convert Studio</strong><small>browser file tools</small></span>
     </a>
     <a class="home-link" href="https://kimhoho8601-alt.github.io/main/">← 도구 홈</a>
   </header>
 
   <section class="hero">
     <div class="hero-copy">
-      <p class="eyebrow">DOCUMENT CONVERTER</p>
-      <h1>
-        <span class="line">문서를 필요한 형식으로,</span>
-        <span class="line"><em>간단하게 변환</em>합니다.</span>
-      </h1>
-      <p>PDF를 이미지나 HWPX로 바꾸고, 다양한 문서를 PDF로 정리합니다. 파일은 가능한 범위에서 브라우저 안에서 처리됩니다.</p>
+      <p class="eyebrow">BROWSER FILE TOOLS</p>
+      <h1><span class="line">파일을 올리고,</span><span class="line"><em>바로 변환</em>합니다.</span></h1>
+      <p>PDF와 이미지를 브라우저 안에서 변환·병합·분할합니다. 별도 프로그램 설치 없이 필요한 결과만 바로 저장하세요.</p>
     </div>
     <div class="hero-visual" aria-hidden="true">
-      <div class="doc-stack">
-        <span class="doc-sheet back"></span>
-        <span class="doc-sheet front"></span>
-        <div class="doc-core"><b>FILE</b><span class="doc-arrow"></span><b>PDF</b></div>
-      </div>
+      <div class="doc-stack"><span class="doc-sheet back"></span><span class="doc-sheet front"></span><div class="doc-core"><b>FILE</b><span class="doc-arrow"></span><b>DONE</b></div></div>
     </div>
   </section>
 
   <main class="workspace">
     <aside class="mode-panel">
-      <p class="panel-kicker">SELECT FORMAT</p>
-      <h2>변환 방식 선택</h2>
-      <p class="panel-copy">원하는 변환 기능을 선택하면 오른쪽 작업 영역이 해당 형식에 맞게 바뀝니다.</p>
-
-      <section class="grid" aria-label="변환 기능 선택">
-        <button class="tool active" data-mode="png">
-          <div class="icon">PNG</div>
-          <div><h2>PDF → PNG</h2><p>페이지별 고해상도 이미지와 ZIP 다운로드</p></div>
-        </button>
-        <button class="tool" data-mode="hwpx">
-          <div class="icon">한</div>
-          <div><h2>PDF → HWPX</h2><p>PDF 페이지 모습을 유지한 HWPX 생성</p></div>
-        </button>
-        <button class="tool" data-mode="pdf">
-          <div class="icon">PDF</div>
-          <div><h2>문서 → PDF</h2><p>DOCX, Excel, HWP/HWPX, 텍스트와 이미지</p></div>
-        </button>
+      <p class="panel-kicker">SELECT TOOL</p>
+      <h2>파일 도구 선택</h2>
+      <p class="panel-copy">브라우저에서 안정적으로 처리되는 기능만 모았습니다.</p>
+      <section class="grid" aria-label="파일 변환 기능 선택">
+        <button class="tool active" data-mode="pdfpng"><div class="icon">PNG</div><div><h2>PDF → PNG</h2><p>페이지별 이미지 변환과 ZIP 저장</p></div></button>
+        <button class="tool" data-mode="imgpdf"><div class="icon">PDF</div><div><h2>이미지 → PDF</h2><p>여러 이미지를 한 PDF로 합치기</p></div></button>
+        <button class="tool" data-mode="imgconvert"><div class="icon">IMG</div><div><h2>이미지 형식 변환</h2><p>PNG · JPG · WebP 상호 변환</p></div></button>
+        <button class="tool" data-mode="heic"><div class="icon">HEIC</div><div><h2>HEIC → JPG/PNG</h2><p>아이폰 HEIC 사진 변환</p></div></button>
+        <button class="tool" data-mode="pdftools"><div class="icon">PDF±</div><div><h2>PDF 합치기 · 분할</h2><p>여러 PDF 병합 또는 페이지 분리</p></div></button>
       </section>
-
-      <div class="privacy-note">
-        <strong>개인정보 보호</strong>
-        <p>변환 가능한 범위에서는 파일을 서버에 저장하지 않고 현재 브라우저에서 처리합니다.</p>
-      </div>
+      <div class="privacy-note"><strong>개인정보 보호</strong><p>선택한 파일은 서버에 업로드하지 않고 현재 브라우저 메모리에서 처리합니다.</p></div>
     </aside>
 
     <section class="work-panel">
-      <div class="panel-head">
-        <div class="panel-heading">
-          <span class="step-badge">01</span>
-          <div>
-            <h3 id="panelTitle">PDF → PNG</h3>
-            <p id="panelDesc">PDF를 선택하면 페이지별 PNG를 생성합니다.</p>
-          </div>
-        </div>
-      </div>
-
+      <div class="panel-head"><div class="panel-heading"><span class="step-badge">01</span><div><h3 id="panelTitle">PDF → PNG</h3><p id="panelDesc">PDF를 페이지별 PNG 이미지로 변환합니다.</p></div></div></div>
       <div class="drop" id="dropZone">
         <div class="upload-symbol" aria-hidden="true">↑</div>
-        <label class="file-label">파일 선택<input type="file" id="fileInput" /></label>
+        <label class="file-label"><span id="fileLabelText">파일 선택</span><input type="file" id="fileInput" /></label>
         <div class="hint" id="acceptHint">PDF 파일</div>
 
-        <div class="options" id="pngOptions">
-          <label>이미지 품질 배율 <input type="number" id="scale" value="2" min="1" max="4" step="0.5" /></label>
+        <div class="segmented hidden" id="pdfToolSwitch">
+          <button type="button" class="seg-btn active" data-pdftool="merge">PDF 합치기</button>
+          <button type="button" class="seg-btn" data-pdftool="split">PDF 분할</button>
         </div>
 
-        <div class="actions">
-          <button class="btn" id="convertBtn" disabled>변환하기</button>
-          <button class="btn secondary" id="clearBtn" disabled>초기화</button>
+        <div class="options" id="options">
+          <label id="scaleOption">이미지 품질 배율 <input type="number" id="scale" value="2" min="1" max="4" step="0.5" /></label>
+          <label id="formatOption" class="hidden">출력 형식
+            <select id="outputFormat"><option value="image/jpeg">JPG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></select>
+          </label>
+          <label id="qualityOption" class="hidden">품질
+            <select id="quality"><option value="0.92">높음</option><option value="0.8">보통</option><option value="0.65">작은 용량</option></select>
+          </label>
+          <label id="pageSizeOption" class="hidden">PDF 페이지
+            <select id="pageSize"><option value="a4">A4 맞춤</option><option value="original">이미지 크기</option></select>
+          </label>
+          <label id="rangeOption" class="hidden">페이지 범위 <input type="text" id="pageRange" placeholder="예: 1-3,5,8" /></label>
         </div>
 
+        <div class="file-list hidden" id="fileList"></div>
+        <div class="actions"><button class="btn" id="convertBtn" disabled>변환하기</button><button class="btn secondary" id="clearBtn" disabled>초기화</button></div>
         <div class="status" id="status"></div>
         <div class="note" id="modeNote">페이지가 많거나 고해상도 PDF는 처리 시간이 늘어날 수 있습니다.</div>
       </div>
-
       <div id="result"></div>
     </section>
   </main>
-
-  <div id="docPreview" class="preview-doc"></div>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 const modes={
-  png:{title:'PDF → PNG',desc:'PDF를 선택하면 페이지별 PNG를 생성합니다.',accept:'application/pdf,.pdf',hint:'PDF 파일',note:'페이지가 많거나 고해상도 PDF는 처리 시간이 늘어날 수 있습니다.'},
-  hwpx:{title:'PDF → HWPX',desc:'PDF 각 페이지를 이미지로 보존해 HWPX 문서로 만듭니다.',accept:'application/pdf,.pdf',hint:'PDF 파일',note:'화면 보존형 변환입니다. HWPX 안의 본문이 원문처럼 완전 편집 가능한 텍스트로 재구성되지는 않습니다.'},
-  pdf:{title:'문서 → PDF',desc:'문서 내용을 브라우저에서 읽어 PDF로 변환합니다.',accept:'.docx,.xlsx,.xls,.csv,.txt,.md,.html,.htm,.jpg,.jpeg,.png,.webp,.hwp,.hwpx',hint:'DOCX · XLSX/XLS/CSV · HWP/HWPX · TXT/MD/HTML · JPG/PNG/WebP',note:'복잡한 Word/Excel/HWP 레이아웃은 브라우저 렌더링 특성상 원본과 일부 다를 수 있습니다. PPTX는 현재 지원하지 않습니다.'}
+  pdfpng:{title:'PDF → PNG',desc:'PDF를 페이지별 PNG 이미지로 변환합니다.',accept:'application/pdf,.pdf',multiple:false,hint:'PDF 파일',note:'페이지별 다운로드와 전체 ZIP 다운로드를 지원합니다.'},
+  imgpdf:{title:'이미지 → PDF',desc:'여러 이미지를 선택한 순서대로 하나의 PDF로 만듭니다.',accept:'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',multiple:true,hint:'JPG · PNG · WebP 이미지 여러 장 선택 가능',note:'여러 이미지는 선택한 순서대로 PDF 페이지가 됩니다.'},
+  imgconvert:{title:'이미지 형식 변환',desc:'PNG, JPG, WebP 이미지를 다른 형식으로 바꿉니다.',accept:'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',multiple:true,hint:'JPG · PNG · WebP 이미지',note:'여러 파일을 선택하면 결과를 ZIP으로 한 번에 저장합니다.'},
+  heic:{title:'HEIC → JPG/PNG',desc:'HEIC/HEIF 사진을 JPG 또는 PNG로 변환합니다.',accept:'.heic,.heif,image/heic,image/heif',multiple:true,hint:'HEIC · HEIF 이미지',note:'일부 대용량 HEIC 파일은 브라우저 메모리 사용량이 커질 수 있습니다.'},
+  pdftools:{title:'PDF 합치기 · 분할',desc:'여러 PDF를 하나로 합치거나 필요한 페이지만 분리합니다.',accept:'application/pdf,.pdf',multiple:true,hint:'PDF 파일',note:'합치기는 여러 PDF를 선택하고, 분할은 PDF 1개와 페이지 범위를 지정합니다.'}
 };
-let mode='png', selectedFile=null, rendered=[];
-const tools=[...document.querySelectorAll('.tool')], input=document.getElementById('fileInput'), btn=document.getElementById('convertBtn'), clear=document.getElementById('clearBtn'), result=document.getElementById('result'), status=document.getElementById('status'), drop=document.getElementById('dropZone'), scale=document.getElementById('scale');
+let mode='pdfpng', selectedFiles=[], rendered=[], pdfTool='merge';
+
+const tools=[...document.querySelectorAll('.tool')];
+const input=document.getElementById('fileInput'), btn=document.getElementById('convertBtn'), clear=document.getElementById('clearBtn');
+const result=document.getElementById('result'), status=document.getElementById('status'), drop=document.getElementById('dropZone');
+const scale=document.getElementById('scale'), outputFormat=document.getElementById('outputFormat'), quality=document.getElementById('quality');
+const pageSize=document.getElementById('pageSize'), pageRange=document.getElementById('pageRange'), fileList=document.getElementById('fileList');
+const pdfToolSwitch=document.getElementById('pdfToolSwitch');
 
 tools.forEach(t=>t.onclick=()=>setMode(t.dataset.mode));
+document.querySelectorAll('.seg-btn').forEach(b=>b.onclick=()=>setPdfTool(b.dataset.pdftool));
+
 function setMode(next){
   mode=next; tools.forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));
-  const m=modes[mode]; document.getElementById('panelTitle').textContent=m.title; document.getElementById('panelDesc').textContent=m.desc; document.getElementById('acceptHint').textContent=m.hint; document.getElementById('modeNote').textContent=m.note; input.accept=m.accept; document.getElementById('pngOptions').classList.toggle('hidden',mode!=='png'); reset();
+  pdfTool='merge'; document.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.pdftool==='merge'));
+  configureMode(); reset();
 }
-function reset(){input.value='';selectedFile=null;rendered=[];result.innerHTML='';btn.disabled=true;clear.disabled=true;setStatus('',false)}
+function setPdfTool(next){
+  pdfTool=next; document.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.pdftool===pdfTool));
+  configureMode(); reset();
+}
+function configureMode(){
+  const m=modes[mode];
+  document.getElementById('panelTitle').textContent=m.title;
+  document.getElementById('panelDesc').textContent=m.desc;
+  document.getElementById('acceptHint').textContent=m.hint;
+  document.getElementById('modeNote').textContent=m.note;
+  input.accept=m.accept;
+  input.multiple = mode==='pdftools' ? pdfTool==='merge' : m.multiple;
+  document.getElementById('fileLabelText').textContent=input.multiple?'파일 여러 개 선택':'파일 선택';
+  pdfToolSwitch.classList.toggle('hidden',mode!=='pdftools');
+  document.getElementById('scaleOption').classList.toggle('hidden',mode!=='pdfpng');
+  document.getElementById('formatOption').classList.toggle('hidden',!['imgconvert','heic'].includes(mode));
+  document.getElementById('qualityOption').classList.toggle('hidden',!['imgconvert','heic'].includes(mode));
+  document.getElementById('pageSizeOption').classList.toggle('hidden',mode!=='imgpdf');
+  document.getElementById('rangeOption').classList.toggle('hidden',!(mode==='pdftools'&&pdfTool==='split'));
+  if(mode==='heic'){
+    outputFormat.innerHTML='<option value="image/jpeg">JPG</option><option value="image/png">PNG</option>';
+  }else if(mode==='imgconvert'){
+    outputFormat.innerHTML='<option value="image/jpeg">JPG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option>';
+  }
+}
+function reset(){
+  input.value='';selectedFiles=[];rendered=[];result.innerHTML='';btn.disabled=true;clear.disabled=true;fileList.innerHTML='';fileList.classList.add('hidden');setStatus('',false);pageRange.value='';
+}
 function setStatus(msg,show=true){status.textContent=msg;status.style.display=show?'block':'none'}
 function baseName(n){return n.replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]/g,'_')}
-function downloadBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1200)}
-function validateFile(f){if(!f)return false;const ext='.'+f.name.split('.').pop().toLowerCase();if(!modes[mode].accept.toLowerCase().includes(ext)){alert('현재 기능에서 지원하지 않는 파일 형식입니다.');return false}return true}
-function selectFile(f){if(!validateFile(f))return;selectedFile=f;result.innerHTML='';rendered=[];btn.disabled=false;clear.disabled=false;setStatus('파일 선택 완료: '+f.name)}
-input.onchange=e=>selectFile(e.target.files[0]); clear.onclick=reset;
+function humanSize(bytes){if(bytes<1024)return bytes+' B';if(bytes<1048576)return (bytes/1024).toFixed(1)+' KB';return (bytes/1048576).toFixed(1)+' MB'}
+function downloadBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
+function validFile(f){const ext='.'+f.name.split('.').pop().toLowerCase();return modes[mode].accept.toLowerCase().includes(ext)||modes[mode].accept.toLowerCase().includes((f.type||'').toLowerCase())}
+function selectFiles(list){
+  const files=[...list].filter(validFile);
+  if(!files.length){alert('현재 기능에서 지원하지 않는 파일 형식입니다.');return}
+  selectedFiles=input.multiple?files:[files[0]];
+  result.innerHTML='';rendered=[];btn.disabled=false;clear.disabled=false;renderFileList();
+  setStatus(selectedFiles.length===1?'파일 선택 완료: '+selectedFiles[0].name:selectedFiles.length+'개 파일 선택 완료');
+}
+function renderFileList(){
+  fileList.innerHTML=''; if(!selectedFiles.length){fileList.classList.add('hidden');return}
+  fileList.classList.remove('hidden');
+  selectedFiles.forEach((f,i)=>{
+    const row=document.createElement('div');row.className='file-row';
+    row.innerHTML='<div><strong>'+escapeHtml(f.name)+'</strong><small>'+humanSize(f.size)+'</small></div><span>'+String(i+1).padStart(2,'0')+'</span>';
+    fileList.appendChild(row);
+  });
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+input.onchange=e=>selectFiles(e.target.files); clear.onclick=reset;
 ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')}));
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));
-drop.addEventListener('drop',e=>selectFile(e.dataTransfer.files[0]));
+drop.addEventListener('drop',e=>selectFiles(e.dataTransfer.files));
 
-async function renderPdf(file,quality=2,onPage){
-  const pdf=await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise, pages=[];
+async function renderPdf(file,qualityValue=2,onPage){
+  const pdf=await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise,pages=[];
   for(let i=1;i<=pdf.numPages;i++){
     if(onPage)onPage(i,pdf.numPages);
-    const page=await pdf.getPage(i), viewport=page.getViewport({scale:quality}), canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+    const page=await pdf.getPage(i),viewport=page.getViewport({scale:qualityValue}),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
     canvas.width=Math.floor(viewport.width);canvas.height=Math.floor(viewport.height);
-    await page.render({canvasContext:ctx,viewport}).promise; pages.push(canvas);
+    await page.render({canvasContext:ctx,viewport}).promise;pages.push(canvas);
   }
   return pages;
 }
-function canvasBlob(canvas,type='image/png',q=.95){return new Promise(r=>canvas.toBlob(r,type,q))}
-function canvasData(canvas,type='image/png',q=.92){return canvas.toDataURL(type,q)}
-
-async function pdfToPng(){
-  const q=Math.max(1,Math.min(4,Number(scale.value)||2)); result.innerHTML='';
-  const pages=await renderPdf(selectedFile,q,(i,n)=>setStatus(i+' / '+n+' 페이지 변환 중...')); rendered=pages;
-  pages.forEach((canvas,idx)=>{
-    const card=document.createElement('div');card.className='page-card';
-    const head=document.createElement('div');head.className='page-head';head.innerHTML='<span>'+(idx+1)+'페이지</span>';
-    const one=document.createElement('button');one.className='btn';one.textContent='PNG 다운로드';one.onclick=async()=>downloadBlob(await canvasBlob(canvas),baseName(selectedFile.name)+'_page_'+String(idx+1).padStart(2,'0')+'.png');
-    head.appendChild(one);card.appendChild(head);card.appendChild(canvas);result.appendChild(card);
-  });
-  const all=document.createElement('button');all.className='btn';all.textContent='전체 PNG ZIP 다운로드';all.onclick=async()=>{setStatus('ZIP 파일 생성 중...');const zip=new JSZip();for(let i=0;i<pages.length;i++)zip.file(baseName(selectedFile.name)+'_page_'+String(i+1).padStart(2,'0')+'.png',await canvasBlob(pages[i]));downloadBlob(await zip.generateAsync({type:'blob'}),baseName(selectedFile.name)+'_png.zip');setStatus('변환 완료!')};
-  result.prepend(all); setStatus('변환 완료! 페이지별 또는 ZIP으로 저장할 수 있습니다.');
-}
-
-async function pdfToHwpx(){
-  setStatus('PDF 페이지를 읽는 중...');
-  const pages=await renderPdf(selectedFile,1.65,(i,n)=>setStatus(i+' / '+n+' 페이지 준비 중...'));
-  const imgs=pages.map((c,i)=>'<p><img src="'+canvasData(c,'image/jpeg',.9)+'" alt="'+(i+1)+'페이지" /></p>').join('');
-  setStatus('HWPX 문서를 만드는 중...');
-  const lib=await import('https://cdn.jsdelivr.net/npm/@ssabrojs/hwpxjs@0.4.0/dist/browser/hwpxjs.browser.mjs');
-  const bytes=await lib.htmlToHwpx(imgs,{title:baseName(selectedFile.name),creator:'Convert'});
-  downloadBlob(new Blob([bytes],{type:'application/vnd.hancom.hwpx'}),baseName(selectedFile.name)+'.hwpx');
-  setStatus('HWPX 변환 완료! 다운로드를 시작했습니다.');
-}
-
-async function hwpxOrHwpToHtml(file){
-  const lib=await import('https://cdn.jsdelivr.net/npm/@ssabrojs/hwpxjs@0.4.0/dist/browser/hwpxjs.browser.mjs');
-  let bytes=new Uint8Array(await file.arrayBuffer()), hwpxBytes=bytes;
-  if(file.name.toLowerCase().endsWith('.hwp')) hwpxBytes=await lib.hwpToHwpx(bytes,{title:baseName(file.name),creator:'Convert'});
-  const reader=new lib.HwpxReader(); await reader.loadFromArrayBuffer(hwpxBytes.buffer.slice(hwpxBytes.byteOffset,hwpxBytes.byteOffset+hwpxBytes.byteLength));
-  return await reader.extractHtml({renderImages:true,renderTables:true,renderStyles:true,embedImages:true});
-}
-async function documentToHtml(file){
-  const ext=file.name.split('.').pop().toLowerCase();
-  if(ext==='docx'){const r=await mammoth.convertToHtml({arrayBuffer:await file.arrayBuffer()});return r.value}
-  if(['xlsx','xls','csv'].includes(ext)){const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});return wb.SheetNames.map(n=>'<h2>'+n+'</h2>'+XLSX.utils.sheet_to_html(wb.Sheets[n])).join('<div style="page-break-after:always"></div>')}
-  if(ext==='md')return marked.parse(await file.text());
-  if(['html','htm'].includes(ext))return await file.text();
-  if(ext==='txt')return '<pre style="white-space:pre-wrap;font-family:inherit">'+(await file.text()).replace(/[&<>]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]))+'</pre>';
-  if(['hwp','hwpx'].includes(ext))return await hwpxOrHwpToHtml(file);
-  throw new Error('HTML_CONVERSION_UNSUPPORTED');
-}
-async function imageToPdf(file){
+function canvasBlob(canvas,type='image/png',q=.92){return new Promise(resolve=>canvas.toBlob(resolve,type,q))}
+async function imageElement(file){
   const url=URL.createObjectURL(file),img=new Image();
   await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url});
-  const {jsPDF}=window.jspdf||{}; if(!jsPDF)throw new Error('PDF_ENGINE');
-  const orient=img.width>img.height?'l':'p',pdf=new jsPDF({orientation:orient,unit:'mm',format:'a4'}),pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),ratio=Math.min((pw-16)/img.width,(ph-16)/img.height),w=img.width*ratio,h=img.height*ratio;
-  pdf.addImage(img, file.type.includes('png')?'PNG':'JPEG',(pw-w)/2,(ph-h)/2,w,h);pdf.save(baseName(file.name)+'.pdf');URL.revokeObjectURL(url);
+  URL.revokeObjectURL(url);return img;
 }
-async function documentToPdf(){
-  const ext=selectedFile.name.split('.').pop().toLowerCase();
-  if(['jpg','jpeg','png','webp'].includes(ext)){await imageToPdf(selectedFile);setStatus('PDF 변환 완료!');return}
-  setStatus('문서를 읽는 중...');const html=await documentToHtml(selectedFile), box=document.getElementById('docPreview');box.innerHTML='<article>'+html+'</article>';
-  await new Promise(r=>setTimeout(r,250));setStatus('PDF를 생성하는 중...');
-  await html2pdf().set({margin:10,filename:baseName(selectedFile.name)+'.pdf',image:{type:'jpeg',quality:.96},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy']}}).from(box).save();
-  box.innerHTML='';setStatus('PDF 변환 완료!');
+function drawImageToCanvas(img){
+  const c=document.createElement('canvas');c.width=img.naturalWidth||img.width;c.height=img.naturalHeight||img.height;
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c;
 }
+
+async function pdfToPng(){
+  const file=selectedFiles[0],q=Math.max(1,Math.min(4,Number(scale.value)||2));result.innerHTML='';
+  const pages=await renderPdf(file,q,(i,n)=>setStatus(i+' / '+n+' 페이지 변환 중...'));rendered=pages;
+  const zipBtn=document.createElement('button');zipBtn.className='btn';zipBtn.textContent='전체 PNG ZIP 다운로드';
+  zipBtn.onclick=async()=>{setStatus('ZIP 파일 생성 중...');const zip=new JSZip();for(let i=0;i<pages.length;i++)zip.file(baseName(file.name)+'_page_'+String(i+1).padStart(2,'0')+'.png',await canvasBlob(pages[i]));downloadBlob(await zip.generateAsync({type:'blob'}),baseName(file.name)+'_png.zip');setStatus('변환 완료!')};
+  result.appendChild(zipBtn);
+  pages.forEach((canvas,idx)=>{
+    const card=document.createElement('div');card.className='page-card';const head=document.createElement('div');head.className='page-head';head.innerHTML='<span>'+(idx+1)+'페이지</span>';
+    const one=document.createElement('button');one.className='btn';one.textContent='PNG 다운로드';one.onclick=async()=>downloadBlob(await canvasBlob(canvas),baseName(file.name)+'_page_'+String(idx+1).padStart(2,'0')+'.png');
+    head.appendChild(one);card.appendChild(head);card.appendChild(canvas);result.appendChild(card);
+  });setStatus('변환 완료! 페이지별 또는 ZIP으로 저장할 수 있습니다.');
+}
+
+async function imagesToPdf(){
+  const {jsPDF}=window.jspdf;let pdf=null;
+  for(let i=0;i<selectedFiles.length;i++){
+    setStatus((i+1)+' / '+selectedFiles.length+' 이미지 처리 중...');
+    const img=await imageElement(selectedFiles[i]);const w=img.naturalWidth,h=img.naturalHeight;
+    if(pageSize.value==='original'){
+      const orient=w>h?'l':'p';const mmPerPx=.264583;const pw=w*mmPerPx,ph=h*mmPerPx;
+      if(!pdf)pdf=new jsPDF({orientation:orient,unit:'mm',format:[pw,ph]});else pdf.addPage([pw,ph],orient);
+      pdf.addImage(img,selectedFiles[i].type.includes('png')?'PNG':'JPEG',0,0,pw,ph);
+    }else{
+      const orient=w>h?'l':'p';
+      if(!pdf)pdf=new jsPDF({orientation:orient,unit:'mm',format:'a4'});else pdf.addPage('a4',orient);
+      const pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),ratio=Math.min((pw-16)/w,(ph-16)/h),dw=w*ratio,dh=h*ratio;
+      pdf.addImage(img,selectedFiles[i].type.includes('png')?'PNG':'JPEG',(pw-dw)/2,(ph-dh)/2,dw,dh);
+    }
+  }
+  pdf.save((selectedFiles.length===1?baseName(selectedFiles[0].name):'images')+'.pdf');setStatus('PDF 생성 완료!');
+}
+
+async function convertImages(){
+  const type=outputFormat.value,q=Number(quality.value),ext=type==='image/jpeg'?'jpg':type==='image/png'?'png':'webp',outputs=[];
+  for(let i=0;i<selectedFiles.length;i++){
+    setStatus((i+1)+' / '+selectedFiles.length+' 이미지 변환 중...');
+    const img=await imageElement(selectedFiles[i]),canvas=drawImageToCanvas(img),blob=await canvasBlob(canvas,type,q);
+    if(!blob)throw new Error('IMAGE_CONVERT');outputs.push({blob,name:baseName(selectedFiles[i].name)+'.'+ext});
+  }
+  if(outputs.length===1)downloadBlob(outputs[0].blob,outputs[0].name);
+  else{const zip=new JSZip();outputs.forEach(o=>zip.file(o.name,o.blob));downloadBlob(await zip.generateAsync({type:'blob'}),'converted_images.zip')}
+  setStatus(outputs.length+'개 이미지 변환 완료!');
+}
+
+async function convertHeic(){
+  const toType=outputFormat.value,q=Number(quality.value),ext=toType==='image/png'?'png':'jpg',outputs=[];
+  for(let i=0;i<selectedFiles.length;i++){
+    setStatus((i+1)+' / '+selectedFiles.length+' HEIC 변환 중...');
+    const out=await heic2any({blob:selectedFiles[i],toType,quality:q}),arr=Array.isArray(out)?out:[out];
+    arr.forEach((blob,j)=>outputs.push({blob,name:baseName(selectedFiles[i].name)+(arr.length>1?'_'+(j+1):'')+'.'+ext}));
+  }
+  if(outputs.length===1)downloadBlob(outputs[0].blob,outputs[0].name);
+  else{const zip=new JSZip();outputs.forEach(o=>zip.file(o.name,o.blob));downloadBlob(await zip.generateAsync({type:'blob'}),'heic_converted.zip')}
+  setStatus(outputs.length+'개 이미지 변환 완료!');
+}
+
+async function mergePdfs(){
+  if(selectedFiles.length<2)throw new Error('MERGE_NEEDS_TWO');
+  const out=await PDFLib.PDFDocument.create();
+  for(let i=0;i<selectedFiles.length;i++){
+    setStatus((i+1)+' / '+selectedFiles.length+' PDF 병합 중...');
+    const src=await PDFLib.PDFDocument.load(await selectedFiles[i].arrayBuffer()),pages=await out.copyPages(src,src.getPageIndices());pages.forEach(p=>out.addPage(p));
+  }
+  downloadBlob(new Blob([await out.save()],{type:'application/pdf'}),'merged.pdf');setStatus('PDF '+selectedFiles.length+'개 병합 완료!');
+}
+function parseRange(text,max){
+  const clean=text.replace(/\s/g,'');if(!clean)return [...Array(max)].map((_,i)=>i);
+  const set=new Set();
+  for(const token of clean.split(',')){
+    if(/^\d+$/.test(token)){const n=Number(token);if(n>=1&&n<=max)set.add(n-1)}
+    else if(/^\d+-\d+$/.test(token)){let[a,b]=token.split('-').map(Number);if(a>b)[a,b]=[b,a];for(let n=a;n<=b;n++)if(n>=1&&n<=max)set.add(n-1)}
+    else throw new Error('BAD_RANGE');
+  }
+  if(!set.size)throw new Error('BAD_RANGE');return [...set].sort((a,b)=>a-b);
+}
+async function splitPdf(){
+  const src=await PDFLib.PDFDocument.load(await selectedFiles[0].arrayBuffer()),indices=parseRange(pageRange.value,src.getPageCount()),out=await PDFLib.PDFDocument.create();
+  const pages=await out.copyPages(src,indices);pages.forEach(p=>out.addPage(p));
+  downloadBlob(new Blob([await out.save()],{type:'application/pdf'}),baseName(selectedFiles[0].name)+'_pages_'+indices.map(i=>i+1).join('-')+'.pdf');
+  setStatus((indices.length)+'페이지 분할 저장 완료!');
+}
+
 btn.onclick=async()=>{
-  if(!selectedFile)return;btn.disabled=true;result.innerHTML='';
-  try{if(mode==='png')await pdfToPng();else if(mode==='hwpx')await pdfToHwpx();else await documentToPdf()}
-  catch(e){console.error(e);setStatus('변환 중 오류가 발생했습니다. 파일이 암호화되어 있거나 현재 브라우저에서 처리하기 어려운 형식일 수 있습니다.')}
-  finally{btn.disabled=false}
+  if(!selectedFiles.length)return;btn.disabled=true;result.innerHTML='';
+  try{
+    if(mode==='pdfpng')await pdfToPng();
+    else if(mode==='imgpdf')await imagesToPdf();
+    else if(mode==='imgconvert')await convertImages();
+    else if(mode==='heic')await convertHeic();
+    else if(mode==='pdftools'&&pdfTool==='merge')await mergePdfs();
+    else if(mode==='pdftools'&&pdfTool==='split')await splitPdf();
+  }catch(e){
+    console.error(e);
+    let msg='처리 중 오류가 발생했습니다. 파일이 손상되었거나 브라우저에서 처리하기 어려운 형식일 수 있습니다.';
+    if(e.message==='MERGE_NEEDS_TWO')msg='PDF 합치기는 PDF 파일을 2개 이상 선택해야 합니다.';
+    if(e.message==='BAD_RANGE')msg='페이지 범위를 확인해주세요. 예: 1-3,5,8';
+    setStatus(msg);
+  }finally{btn.disabled=false}
 };
-setMode('png');
+configureMode();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 </body>
 </html>
