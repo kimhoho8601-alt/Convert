@@ -240,6 +240,7 @@ const previewTitle=document.getElementById('previewTitle');
 const previewSubtitle=document.getElementById('previewSubtitle');
 let dragIndex=null;
 let splitSelectedPages=new Set();
+let previewRevision=0;
 
 tools.forEach(t=>t.onclick=()=>setMode(t.dataset.mode));
 document.querySelectorAll('.seg-btn').forEach(b=>b.onclick=()=>setPdfTool(b.dataset.pdftool));
@@ -276,6 +277,7 @@ function configureMode(){
   }
 }
 function reset(){
+  previewRevision++;
   input.value='';selectedFiles=[];rendered=[];result.innerHTML='';btn.disabled=true;clear.disabled=true;
   fileList.innerHTML='';fileList.classList.add('hidden');orderGuide.classList.add('hidden');
   setStatus('',false);pageRange.value='';dragIndex=null;splitSelectedPages=new Set();
@@ -286,7 +288,7 @@ function setStatus(msg,show=true){status.textContent=msg;status.style.display=sh
 function baseName(n){return n.replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]/g,'_')}
 function humanSize(bytes){if(bytes<1024)return bytes+' B';if(bytes<1048576)return (bytes/1024).toFixed(1)+' KB';return (bytes/1048576).toFixed(1)+' MB'}
 function downloadBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
-function validFile(f){const ext='.'+f.name.split('.').pop().toLowerCase();return modes[mode].accept.toLowerCase().includes(ext)||modes[mode].accept.toLowerCase().includes((f.type||'').toLowerCase())}
+function validFile(f){const ext='.'+f.name.split('.').pop().toLowerCase(),type=(f.type||'').toLowerCase(),accepted=modes[mode].accept.toLowerCase().split(',');return accepted.includes(ext)||(!!type&&accepted.includes(type))}
 function selectFiles(list){
   const files=[...list].filter(validFile);
   if(!files.length){alert('현재 기능에서 지원하지 않는 파일 형식입니다.');return}
@@ -506,34 +508,43 @@ async function mergePdfs(){
   downloadBlob(new Blob([await out.save()],{type:'application/pdf'}),'merged.pdf');setStatus('PDF '+selectedFiles.length+'개 병합 완료!');
 }
 async function renderPdfToolPreview(){
+  const revision=++previewRevision,files=[...selectedFiles],tool=pdfTool;
+  const isCurrent=()=>revision===previewRevision;
   if(mode!=='pdftools'||!selectedFiles.length)return;
   previewGrid.innerHTML='';
-  if(pdfTool==='merge'){
+  if(tool==='merge'){
     previewTitle.textContent='합치기 순서 미리보기';
     previewSubtitle.textContent='현재 파일 순서대로 PDF가 합쳐집니다.';
-    for(let i=0;i<selectedFiles.length;i++){
+    for(let i=0;i<files.length;i++){
+      let pdf;
       try{
-        const pdf=await pdfjsLib.getDocument(new Uint8Array(await selectedFiles[i].arrayBuffer())).promise;
+        pdf=await pdfjsLib.getDocument(new Uint8Array(await files[i].arrayBuffer())).promise;
+        if(!isCurrent())return;
         const page=await pdf.getPage(1),viewport=page.getViewport({scale:.45}),canvas=document.createElement('canvas');
         canvas.width=Math.floor(viewport.width);canvas.height=Math.floor(viewport.height);
         await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+        if(!isCurrent())return;
         const card=document.createElement('div');card.className='preview-card';
         const meta=document.createElement('div');meta.className='preview-meta';
-        meta.innerHTML='<strong>'+escapeHtml(selectedFiles[i].name)+'</strong><span>'+String(i+1).padStart(2,'0')+'</span>';
+        meta.innerHTML='<strong>'+escapeHtml(files[i].name)+'</strong><span>'+String(i+1).padStart(2,'0')+'</span>';
         card.appendChild(canvas);card.appendChild(meta);previewGrid.appendChild(card);
-      }catch(e){}
+      }catch(e){if(!isCurrent())return}
+      finally{if(pdf)await pdf.destroy()}
     }
   }else{
     previewTitle.textContent='분할 페이지 미리보기';
     previewSubtitle.textContent='썸네일을 클릭해 추출할 페이지를 선택하세요.';
-    const file=selectedFiles[0];
+    const file=files[0];
+    let pdf;
+    splitSelectedPages=new Set();
     try{
-      const pdf=await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise;
-      splitSelectedPages=new Set();
+      pdf=await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise;
+      if(!isCurrent())return;
       for(let i=1;i<=pdf.numPages;i++){
         const page=await pdf.getPage(i),viewport=page.getViewport({scale:.42}),canvas=document.createElement('canvas');
         canvas.width=Math.floor(viewport.width);canvas.height=Math.floor(viewport.height);
         await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+        if(!isCurrent())return;
         const card=document.createElement('button');card.type='button';card.className='preview-card';card.dataset.page=String(i);
         card.innerHTML='<span class="preview-check">✓</span>';
         card.appendChild(canvas);
@@ -547,9 +558,11 @@ async function renderPdfToolPreview(){
         };
         previewGrid.appendChild(card);
       }
+      if(pageRange.value.trim())syncPreviewSelectionFromRange();
     }catch(e){
+      if(!isCurrent())return;
       previewGrid.innerHTML='<div class="preview-empty">미리보기를 만들 수 없는 PDF입니다.</div>';
-    }
+    }finally{if(pdf)await pdf.destroy()}
   }
 }
 function syncPreviewSelectionFromRange(){
