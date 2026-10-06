@@ -65,8 +65,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,.file-label:focus-
 .btn.secondary{background:#fff;border:1px solid var(--line);color:var(--ink)}.btn.secondary:hover:not(:disabled){background:#fffafb;border-color:#d9b7bf}.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
 .status{display:none;width:100%;max-width:650px;margin-top:18px;padding:13px 15px;border-radius:11px;background:#fff;border:1px solid var(--line);color:var(--ink);line-height:1.55;font-size:11px;text-align:left}.status:before{content:"●";color:var(--red);margin-right:7px;font-size:9px}
 .note{max-width:650px;margin-top:12px;color:var(--muted);font-size:10px;line-height:1.6;text-align:center}
-.file-list{width:100%;max-width:650px;display:grid;gap:7px;margin-top:14px}.file-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:10px;text-align:left}
-.file-row strong,.file-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-row strong{font-size:11px}.file-row small{font-size:9px;color:var(--muted);margin-top:2px}.file-row span{font:700 9px Manrope;color:var(--red)}
+.file-list{width:100%;max-width:650px;display:grid;gap:7px;margin-top:14px}
+.file-row{
+  display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;
+  padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:10px;text-align:left;
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.file-row.sortable{cursor:grab;touch-action:none}
+.file-row.sortable:active{cursor:grabbing}
+.file-row.dragging{opacity:.55;transform:scale(.995);border-color:var(--red);background:var(--red-soft);box-shadow:var(--shadow-small)}
+.file-row.drag-over{border-color:var(--red);box-shadow:0 0 0 2px rgba(201,0,43,.08)}
+.drag-handle{
+  width:24px;height:34px;display:grid;place-items:center;color:#a89599;
+  font-size:17px;line-height:1;user-select:none
+}
+.file-row strong,.file-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-row strong{font-size:11px}.file-row small{font-size:9px;color:var(--muted);margin-top:2px}
+.file-order{font:700 9px Manrope;color:var(--red)}
+.order-guide{
+  width:100%;max-width:650px;margin-top:9px;color:var(--muted);font-size:9px;line-height:1.5;text-align:left
+}
 #result{display:grid;gap:14px;margin-top:24px}#result>.btn{justify-self:start}.page-card{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff;box-shadow:var(--shadow-small)}
 .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;font-size:12px;font-weight:700}.thumb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.thumb-card{border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
 .thumb-card img{width:100%;height:130px;object-fit:contain;background:#faf7f8;display:block}.thumb-card div{padding:9px 10px;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -139,6 +157,7 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
         </div>
 
         <div class="file-list hidden" id="fileList"></div>
+        <div class="order-guide hidden" id="orderGuide">☷ 파일을 드래그해 순서를 바꿀 수 있습니다.</div>
         <div class="actions"><button class="btn" id="convertBtn" disabled>변환하기</button><button class="btn secondary" id="clearBtn" disabled>초기화</button></div>
         <div class="status" id="status"></div>
         <div class="note" id="modeNote">페이지가 많거나 고해상도 PDF는 처리 시간이 늘어날 수 있습니다.</div>
@@ -164,7 +183,9 @@ const input=document.getElementById('fileInput'), btn=document.getElementById('c
 const result=document.getElementById('result'), status=document.getElementById('status'), drop=document.getElementById('dropZone');
 const scale=document.getElementById('scale'), outputFormat=document.getElementById('outputFormat'), quality=document.getElementById('quality');
 const pageSize=document.getElementById('pageSize'), pageRange=document.getElementById('pageRange'), fileList=document.getElementById('fileList');
+const orderGuide=document.getElementById('orderGuide');
 const pdfToolSwitch=document.getElementById('pdfToolSwitch');
+let dragIndex=null;
 
 tools.forEach(t=>t.onclick=()=>setMode(t.dataset.mode));
 document.querySelectorAll('.seg-btn').forEach(b=>b.onclick=()=>setPdfTool(b.dataset.pdftool));
@@ -200,7 +221,9 @@ function configureMode(){
   }
 }
 function reset(){
-  input.value='';selectedFiles=[];rendered=[];result.innerHTML='';btn.disabled=true;clear.disabled=true;fileList.innerHTML='';fileList.classList.add('hidden');setStatus('',false);pageRange.value='';
+  input.value='';selectedFiles=[];rendered=[];result.innerHTML='';btn.disabled=true;clear.disabled=true;
+  fileList.innerHTML='';fileList.classList.add('hidden');orderGuide.classList.add('hidden');
+  setStatus('',false);pageRange.value='';dragIndex=null;
 }
 function setStatus(msg,show=true){status.textContent=msg;status.style.display=show?'block':'none'}
 function baseName(n){return n.replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]/g,'_')}
@@ -214,12 +237,67 @@ function selectFiles(list){
   result.innerHTML='';rendered=[];btn.disabled=false;clear.disabled=false;renderFileList();
   setStatus(selectedFiles.length===1?'파일 선택 완료: '+selectedFiles[0].name:selectedFiles.length+'개 파일 선택 완료');
 }
+function canReorder(){
+  return selectedFiles.length>1 && (mode==='imgpdf' || (mode==='pdftools' && pdfTool==='merge'));
+}
+function moveSelectedFile(from,to){
+  if(from===to || from<0 || to<0 || from>=selectedFiles.length || to>=selectedFiles.length)return;
+  const [moved]=selectedFiles.splice(from,1);
+  selectedFiles.splice(to,0,moved);
+  renderFileList();
+  setStatus('파일 순서를 변경했습니다. 현재 순서대로 '+(mode==='imgpdf'?'PDF가 생성됩니다.':'PDF가 합쳐집니다.'));
+}
 function renderFileList(){
-  fileList.innerHTML=''; if(!selectedFiles.length){fileList.classList.add('hidden');return}
+  fileList.innerHTML='';
+  if(!selectedFiles.length){
+    fileList.classList.add('hidden');orderGuide.classList.add('hidden');return;
+  }
+  const sortable=canReorder();
   fileList.classList.remove('hidden');
+  orderGuide.classList.toggle('hidden',!sortable);
   selectedFiles.forEach((f,i)=>{
-    const row=document.createElement('div');row.className='file-row';
-    row.innerHTML='<div><strong>'+escapeHtml(f.name)+'</strong><small>'+humanSize(f.size)+'</small></div><span>'+String(i+1).padStart(2,'0')+'</span>';
+    const row=document.createElement('div');
+    row.className='file-row'+(sortable?' sortable':'');
+    row.dataset.index=String(i);
+    row.draggable=sortable;
+    row.innerHTML='<div class="drag-handle" aria-hidden="true">'+(sortable?'☷':'•')+'</div><div><strong>'+escapeHtml(f.name)+'</strong><small>'+humanSize(f.size)+'</small></div><span class="file-order">'+String(i+1).padStart(2,'0')+'</span>';
+
+    if(sortable){
+      row.addEventListener('dragstart',e=>{
+        dragIndex=i;row.classList.add('dragging');
+        if(e.dataTransfer){e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(i))}
+      });
+      row.addEventListener('dragend',()=>{dragIndex=null;document.querySelectorAll('.file-row').forEach(r=>r.classList.remove('dragging','drag-over'))});
+      row.addEventListener('dragover',e=>{e.preventDefault();row.classList.add('drag-over');if(e.dataTransfer)e.dataTransfer.dropEffect='move'});
+      row.addEventListener('dragleave',()=>row.classList.remove('drag-over'));
+      row.addEventListener('drop',e=>{
+        e.preventDefault();row.classList.remove('drag-over');
+        const from=dragIndex!==null?dragIndex:Number(e.dataTransfer?.getData('text/plain'));
+        moveSelectedFile(from,i);
+      });
+
+      let touchStartY=0,touchCurrentY=0;
+      row.addEventListener('touchstart',e=>{
+        if(e.touches.length!==1)return;
+        dragIndex=i;touchStartY=e.touches[0].clientY;touchCurrentY=touchStartY;row.classList.add('dragging');
+      },{passive:true});
+      row.addEventListener('touchmove',e=>{
+        if(dragIndex===null||e.touches.length!==1)return;
+        touchCurrentY=e.touches[0].clientY;
+        const target=document.elementFromPoint(e.touches[0].clientX,touchCurrentY)?.closest('.file-row.sortable');
+        document.querySelectorAll('.file-row').forEach(r=>r.classList.remove('drag-over'));
+        if(target)target.classList.add('drag-over');
+      },{passive:true});
+      row.addEventListener('touchend',e=>{
+        const target=document.elementFromPoint(
+          e.changedTouches?.[0]?.clientX||0,
+          e.changedTouches?.[0]?.clientY||touchCurrentY
+        )?.closest('.file-row.sortable');
+        document.querySelectorAll('.file-row').forEach(r=>r.classList.remove('dragging','drag-over'));
+        if(target && dragIndex!==null)moveSelectedFile(dragIndex,Number(target.dataset.index));
+        dragIndex=null;
+      });
+    }
     fileList.appendChild(row);
   });
 }
