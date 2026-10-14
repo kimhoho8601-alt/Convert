@@ -542,7 +542,8 @@ async function renderPdfToolPreview(){
     try{
       pdf=await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise;
       if(!isCurrent())return;
-      for(let i=1;i<=pdf.numPages;i++){
+      const pageCount=pdf.numPages;
+      for(let i=1;i<=pageCount;i++){
         const page=await pdf.getPage(i),viewport=page.getViewport({scale:.42}),canvas=document.createElement('canvas');
         canvas.width=Math.floor(viewport.width);canvas.height=Math.floor(viewport.height);
         await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
@@ -553,10 +554,12 @@ async function renderPdfToolPreview(){
         const meta=document.createElement('div');meta.className='preview-meta';meta.innerHTML='<strong>'+i+'페이지</strong><span>'+String(i).padStart(2,'0')+'</span>';
         card.appendChild(meta);
         card.onclick=()=>{
-          if(splitSelectedPages.has(i)){splitSelectedPages.delete(i);card.classList.remove('selected')}
-          else{splitSelectedPages.add(i);card.classList.add('selected')}
-          pageRange.value=[...splitSelectedPages].sort((a,b)=>a-b).join(',');
-          previewSubtitle.textContent=splitSelectedPages.size?splitSelectedPages.size+'개 페이지 선택됨':'썸네일을 클릭해 추출할 페이지를 선택하세요.';
+          try{
+            pageRange.value=toggleSplitPage(pageRange.value,i,pageCount);
+            syncPreviewSelectionFromRange();
+          }catch(e){
+            setStatus('입력한 페이지 범위를 먼저 확인해주세요. 예: 1-3,5,8~10');
+          }
         };
         previewGrid.appendChild(card);
       }
@@ -573,13 +576,31 @@ function syncPreviewSelectionFromRange(){
   if(!cards.length)return;
   const max=cards.length;
   try{
-    const indices=parseRange(pageRange.value,max);
+    const indices=pageRange.value.trim()?parseRange(pageRange.value,max):[];
     splitSelectedPages=new Set(indices.map(i=>i+1));
     cards.forEach(card=>card.classList.toggle('selected',splitSelectedPages.has(Number(card.dataset.page))));
     previewSubtitle.textContent=splitSelectedPages.size?splitSelectedPages.size+'개 페이지 선택됨':'썸네일을 클릭해 추출할 페이지를 선택하세요.';
   }catch(e){}
 }
 pageRange.addEventListener('input',syncPreviewSelectionFromRange);
+
+function toggleSplitPage(text,page,max){
+  const tokens=text.trim()?text.split(',').map(token=>token.trim()):[];
+  const groups=tokens.length?parseSplitGroups(text,max):[];
+  if(!groups.some(indices=>indices.includes(page-1))){
+    return [...tokens,String(page)].join(',');
+  }
+  const updated=[];
+  groups.forEach((indices,index)=>{
+    if(!indices.includes(page-1)){updated.push(tokens[index]);return}
+    const first=indices[0]+1,last=indices[indices.length-1]+1;
+    const separator=tokens[index].includes('~')?'~':'-';
+    const addRange=(a,b)=>{if(a<=b)updated.push(a===b?String(a):a+separator+b)};
+    addRange(first,page-1);
+    addRange(page+1,last);
+  });
+  return updated.join(',');
+}
 
 function parseSplitGroups(text,max){
   const clean=text.trim();
