@@ -585,7 +585,8 @@ function syncPreviewSelectionFromRange(){
 pageRange.addEventListener('input',syncPreviewSelectionFromRange);
 
 function toggleSplitPage(text,page,max){
-  const tokens=text.trim()?text.split(',').map(token=>token.trim()):[];
+  const clean=normalizeSplitRange(text);
+  const tokens=clean?clean.split(',').map(token=>token.trim()):[];
   const groups=tokens.length?parseSplitGroups(text,max):[];
   if(!groups.some(indices=>indices.includes(page-1))){
     return [...tokens,String(page)].join(',');
@@ -602,8 +603,15 @@ function toggleSplitPage(text,page,max){
   return updated.join(',');
 }
 
+function normalizeSplitRange(text){
+  const trimmed=text.trim();
+  const clean=trimmed.replace(/,$/,'').trim();
+  if(trimmed&&!clean)throw new Error('BAD_RANGE');
+  return clean;
+}
+
 function parseSplitGroups(text,max){
-  const clean=text.trim();
+  const clean=normalizeSplitRange(text);
   if(!clean)return Array.from({length:max},(_,i)=>[i]);
   return clean.split(',').map(token=>{
     const match=token.trim().match(/^(\d+)(?:\s*[-~]\s*(\d+))?$/);
