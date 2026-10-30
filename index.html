@@ -476,12 +476,22 @@ async function imagesToPdf(){
   setStatus('PDF 생성 완료!');
 }
 
+// Reserve names across the whole batch, including names that already have suffixes.
+function uniqueOutputName(name,usedNames){
+  const dot=name.lastIndexOf('.'),stem=dot<0?name:name.slice(0,dot),ext=dot<0?'':name.slice(dot);
+  let candidate=name;
+  const key=value=>value.normalize('NFC').toLowerCase();
+  for(let n=2;usedNames.has(key(candidate));n++)candidate=stem+'_'+String(n).padStart(2,'0')+ext;
+  usedNames.add(key(candidate));
+  return candidate;
+}
 async function convertImages(){
   const type=outputFormat.value,q=Number(quality.value),ext=type==='image/jpeg'?'jpg':type==='image/png'?'png':'webp',outputs=[];
+  const usedNames=new Set();
   for(let i=0;i<selectedFiles.length;i++){
     setStatus((i+1)+' / '+selectedFiles.length+' 이미지 변환 중...');
     const img=await imageElement(selectedFiles[i]),canvas=drawImageToCanvas(img),blob=await canvasBlob(canvas,type,q);
-    if(!blob)throw new Error('IMAGE_CONVERT');outputs.push({blob,name:baseName(selectedFiles[i].name)+'.'+ext});
+    if(!blob)throw new Error('IMAGE_CONVERT');outputs.push({blob,name:uniqueOutputName(baseName(selectedFiles[i].name)+'.'+ext,usedNames)});
   }
   if(outputs.length===1)downloadBlob(outputs[0].blob,outputs[0].name);
   else{const zip=new JSZip();outputs.forEach(o=>zip.file(o.name,o.blob));downloadBlob(await zip.generateAsync({type:'blob'}),'converted_images.zip')}
@@ -490,10 +500,11 @@ async function convertImages(){
 
 async function convertHeic(){
   const toType=outputFormat.value,q=Number(quality.value),ext=toType==='image/png'?'png':'jpg',outputs=[];
+  const usedNames=new Set();
   for(let i=0;i<selectedFiles.length;i++){
     setStatus((i+1)+' / '+selectedFiles.length+' HEIC 변환 중...');
     const out=await heic2any({blob:selectedFiles[i],toType,quality:q}),arr=Array.isArray(out)?out:[out];
-    arr.forEach((blob,j)=>outputs.push({blob,name:baseName(selectedFiles[i].name)+(arr.length>1?'_'+(j+1):'')+'.'+ext}));
+    arr.forEach((blob,j)=>outputs.push({blob,name:uniqueOutputName(baseName(selectedFiles[i].name)+(arr.length>1?'_'+(j+1):'')+'.'+ext,usedNames)}));
   }
   if(outputs.length===1)downloadBlob(outputs[0].blob,outputs[0].name);
   else{const zip=new JSZip();outputs.forEach(o=>zip.file(o.name,o.blob));downloadBlob(await zip.generateAsync({type:'blob'}),'heic_converted.zip')}
@@ -677,4 +688,5 @@ configureMode();
 <script src="tool-analytics.js?v=20261026-1" data-tool="convert"></script>
 </body>
 </html>
+
 
